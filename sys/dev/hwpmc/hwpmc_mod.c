@@ -3685,6 +3685,158 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 	 * Read and/or write a PMC.
 	 */
 
+	case PMC_OP_PMCRW_M:
+	{
+		int adjri;
+		uint32_t cpu, ri;
+		pmc_value_t oldvalue;
+		struct pmc_binding pb;
+		struct pmc_classdep *pcd;
+		unsigned int npmc, i;
+
+		PMC_DOWNGRADE_SX();
+
+		npmc = md->pmd_npmc;
+		struct pmc_op_pmcrw prw[npmc];
+		struct pmc *pm[npmc];
+
+		if ((error = copyin(arg, &prw, sizeof(prw[0]) * npmc)) != 0)
+			break;
+
+		for (i = 0; i < npmc; i++) {
+			if (PMC_ID_TO_MODE(prw[i].pm_pmcid) == PMC_MODE_INVALID) {
+				pm[i] = NULL;
+				continue;
+			}
+
+			ri = 0;
+			PMCDBG(PMC,OPS,1, "rw id=%d flags=0x%x", prw[i].pm_pmcid,
+			    prw[i].pm_flags);
+
+			/* must have at least one flag set */
+			if ((prw[i].pm_flags & (PMC_F_OLDVALUE|PMC_F_NEWVALUE)) == 0) {
+				error = EINVAL;
+				goto rw_m_error_out;
+			}
+
+			/* locate pmc descriptor */
+			if ((error = pmc_find_pmc(prw[i].pm_pmcid, &pm[i])) != 0)
+				goto rw_m_error_out;
+
+			/* Can't read a PMC that hasn't been started. */
+			if (pm[i]->pm_state != PMC_STATE_ALLOCATED &&
+			    pm[i]->pm_state != PMC_STATE_STOPPED &&
+			    pm[i]->pm_state != PMC_STATE_RUNNING) {
+				error = EINVAL;
+				goto rw_m_error_out;
+			}
+
+			/* writing a new value is allowed only for 'STOPPED' pmcs */
+			if (pm[i]->pm_state == PMC_STATE_RUNNING &&
+			    (prw[i].pm_flags & PMC_F_NEWVALUE)) {
+				error = EBUSY;
+				goto rw_m_error_out;
+			}
+		}
+
+		for (i = 0; i < npmc; i++) {
+			if (pm[i] == NULL) {
+				oldvalue = 0;
+				goto rw_m_copyout;
+			}
+
+			if (PMC_IS_VIRTUAL_MODE(PMC_TO_MODE(pm[i]))) {
+
+				/*
+				 * If this PMC is attached to its owner (i.e.,
+				 * the process requesting this operation) and
+				 * is running, then attempt to get an
+				 * upto-date reading from hardware for a READ.
+				 * Writes are only allowed when the PMC is
+				 * stopped, so only update the saved value
+				 * field.
+				 *
+				 * If the PMC is not running, or is not
+				 * attached to its owner, read/write to the
+				 * savedvalue field.
+				 */
+
+				ri = PMC_TO_ROWINDEX(pm[i]);
+				pcd = pmc_ri_to_classdep(md, ri, &adjri);
+
+				mtx_pool_lock_spin(pmc_mtxpool, pm[i]);
+				cpu = curthread->td_oncpu;
+
+				if (prw[i].pm_flags & PMC_F_OLDVALUE) {
+					if ((pm[i]->pm_flags & PMC_F_ATTACHED_TO_OWNER) &&
+					    (pm[i]->pm_state == PMC_STATE_RUNNING))
+						error = (*pcd->pcd_read_pmc)(cpu, adjri,
+						    &oldvalue);
+					else
+						oldvalue = pm[i]->pm_gv.pm_savedvalue;
+				}
+				if (prw[i].pm_flags & PMC_F_NEWVALUE)
+					pm[i]->pm_gv.pm_savedvalue = prw[i].pm_value;
+
+				mtx_pool_unlock_spin(pmc_mtxpool, pm[i]);
+
+			} else { /* System mode PMCs */
+				cpu = PMC_TO_CPU(pm[i]);
+				ri  = PMC_TO_ROWINDEX(pm[i]);
+				pcd = pmc_ri_to_classdep(md, ri, &adjri);
+
+				if (!pmc_cpu_is_active(cpu)) {
+					error = ENXIO;
+					break;
+				}
+
+				/* move this thread to CPU 'cpu' */
+				pmc_save_cpu_binding(&pb);
+				pmc_select_cpu(cpu);
+
+				critical_enter();
+				/* save old value */
+				if (prw[i].pm_flags & PMC_F_OLDVALUE)
+					if ((error = (*pcd->pcd_read_pmc)(cpu, adjri,
+						 &oldvalue)))
+						goto rw_m_error;
+				/* write out new value */
+				if (prw[i].pm_flags & PMC_F_NEWVALUE)
+					error = (*pcd->pcd_write_pmc)(cpu, adjri,
+					    prw[i].pm_value);
+			rw_m_error:
+				critical_exit();
+				pmc_restore_cpu_binding(&pb);
+				if (error) {
+					/* XXX-BZ should we try to finish the others? */
+					goto rw_m_error_out;
+				}
+			}
+
+#ifdef	DEBUG
+			if (prw[i].pm_flags & PMC_F_NEWVALUE)
+				PMCDBG(PMC,OPS,2, "rw id=%d new %jx -> old %jx",
+				    ri, prw[i].pm_value, oldvalue);
+			else if (prw[i].pm_flags & PMC_F_OLDVALUE)
+				PMCDBG(PMC,OPS,2, "rw id=%d -> old %jx", ri, oldvalue);
+#endif
+
+rw_m_copyout:
+			/* return old value if requested */
+			if (prw[i].pm_flags & PMC_F_OLDVALUE) {
+				struct pmc_op_pmcrw **pprw;
+
+				pprw = (struct pmc_op_pmcrw **) arg;
+
+				if ((error = copyout(&oldvalue, &pprw[i]->pm_value,
+					 sizeof(prw[i].pm_value))))
+					break;
+			}
+		}
+	}
+rw_m_error_out:
+	break;
+
 	case PMC_OP_PMCRW:
 	{
 		int adjri;
@@ -3851,6 +4003,57 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 	 * Start a PMC.
 	 */
 
+	case PMC_OP_PMCSTART_M:
+	{
+		pmc_id_t pmcid;
+		unsigned int npmc, i;
+
+		sx_assert(&pmc_sx, SX_XLOCKED);
+
+		npmc = md->pmd_npmc;
+		struct pmc_op_simple sp[npmc];
+		struct pmc *pm[npmc];
+
+		if ((error = copyin(arg, sp, sizeof(sp[0]) * npmc)) != 0)
+			break;
+
+		for (i = 0; i < npmc; i++) {
+			pmcid = sp[i].pm_pmcid;
+			if (PMC_ID_TO_MODE(pmcid) == PMC_MODE_INVALID) {
+				pm[i] = NULL;
+				continue;
+			}
+
+			if ((error = pmc_find_pmc(pmcid, &pm[i])) != 0)
+				goto start_m_out;
+
+			KASSERT(pmcid == pm[i]->pm_id,
+			    ("[pmc,%d] pmcid %x != id %x", __LINE__,
+				pm[i]->pm_id, pmcid));
+
+			if (pm[i]->pm_state == PMC_STATE_RUNNING) { /* already running */
+				pm[i] = NULL;
+				continue;
+			} else if (pm[i]->pm_state != PMC_STATE_STOPPED &&
+			    pm[i]->pm_state != PMC_STATE_ALLOCATED) {
+				error = EINVAL;
+				goto start_m_out;
+			}
+		}
+
+		for (i = 0; i < npmc; i++) {
+			if (pm[i] == NULL)
+				continue;
+			error = pmc_start(pm[i]);
+			if (error != 0) {
+				/* XXX-BZ should we try to unroll and stop? */
+				break;
+			}
+		}
+	}
+start_m_out:
+	break;
+
 	case PMC_OP_PMCSTART:
 	{
 		pmc_id_t pmcid;
@@ -3887,6 +4090,64 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 	/*
 	 * Stop a PMC.
 	 */
+
+	case PMC_OP_PMCSTOP_M:
+	{
+		pmc_id_t pmcid;
+		unsigned int npmc, i;
+		int err;
+
+		PMC_DOWNGRADE_SX();
+
+		npmc = md->pmd_npmc;
+		struct pmc_op_simple sp[npmc];
+		struct pmc *pm[npmc];
+
+		if ((error = copyin(arg, sp, sizeof(sp[0]) * npmc)) != 0)
+			break;
+
+		for (i = 0; i < npmc; i++) {
+			pmcid = sp[i].pm_pmcid;
+			if (PMC_ID_TO_MODE(pmcid) == PMC_MODE_INVALID) {
+				pm[i] = NULL;
+				continue;
+			}
+
+			/*
+			 * Mark the PMC as inactive and invoke the MD stop
+			 * routines if needed.
+			 */
+
+			if ((error = pmc_find_pmc(pmcid, &pm[i])) != 0)
+				goto stop_m_out;
+
+			KASSERT(pmcid == pm[i]->pm_id,
+			    ("[pmc,%d] pmc id %x != pmcid %x", __LINE__,
+				pm[i]->pm_id, pmcid));
+
+			if (pm[i]->pm_state == PMC_STATE_STOPPED) { /* already stopped */
+				pm[i] = NULL;
+				continue;
+			} else if (pm[i]->pm_state != PMC_STATE_RUNNING) {
+				error = EINVAL;
+				goto stop_m_out;
+			}
+		}
+
+		err = 0;
+		for (i = 0; i < npmc; i++) {
+			if (pm[i] == NULL)
+				continue;
+			error = pmc_stop(pm[i]);
+			if (error != 0) {
+				/* Try to stop as many as possible. */
+				err++;
+			}
+		}
+		error = err;
+	}
+stop_m_out:
+	break;
 
 	case PMC_OP_PMCSTOP:
 	{

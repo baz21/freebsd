@@ -213,7 +213,8 @@ enum pmc_state {
 	__PMC_MODE(SS,	0)			\
 	__PMC_MODE(SC,	1)			\
 	__PMC_MODE(TS,	2)			\
-	__PMC_MODE(TC,	3)
+	__PMC_MODE(TC,	3)			\
+	__PMC_MODE(INVALID, 0xff)
 
 enum pmc_mode {
 #undef	__PMC_MODE
@@ -323,7 +324,10 @@ enum pmc_event {
 	__PMC_OP(PMCSTOP, "Stop a PMC")					\
 	__PMC_OP(WRITELOG, "Write a cookie to the log file")		\
 	__PMC_OP(CLOSELOG, "Close log file")				\
-	__PMC_OP(GETDYNEVENTINFO, "Get dynamic events list")
+	__PMC_OP(GETDYNEVENTINFO, "Get dynamic events list")		\
+	__PMC_OP(PMCRW_M, "Read/Set multiple PMC")			\
+	__PMC_OP(PMCSTART_M, "Start multiple PMC")			\
+	__PMC_OP(PMCSTOP_M, "Stop multiple PMC")
 
 
 enum pmc_ops {
