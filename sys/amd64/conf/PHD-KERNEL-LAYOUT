@@ -1,0 +1,123 @@
+include PHD-GENERIC
+
+ident PHD-KERNEL-LAYOUT
+
+nooptions 	XENHVM			# Include Xen support
+
+# PCI Ethernet NICs that use the common MII bus controller code.
+# NOTE: Be sure to keep the 'device miibus' line in order to use these NICs!
+#device		miibus		# MII bus support
+nodevice		ae		# Attansic/Atheros L2 FastEthernet
+nodevice		age		# Attansic/Atheros L1 Gigabit Ethernet
+nodevice		alc		# Atheros AR8131/AR8132 Ethernet
+nodevice		ale		# Atheros AR8121/AR8113/AR8114 Ethernet
+nodevice		bce		# Broadcom BCM5706/BCM5708 Gigabit Ethernet
+nodevice		bfe		# Broadcom BCM440x 10/100 Ethernet
+nodevice		bge		# Broadcom BCM570xx Gigabit Ethernet
+nodevice		cas		# Sun Cassini/Cassini+ and NS DP83065 Saturn
+nodevice		dc		# DEC/Intel 21143 and various workalikes
+nodevice		et		# Agere ET1310 10/100/Gigabit Ethernet
+nodevice		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
+nodevice		gem		# Sun GEM/Sun ERI/Apple GMAC
+nodevice		hme		# Sun HME (Happy Meal Ethernet)
+nodevice		jme		# JMicron JMC250 Gigabit/JMC260 Fast Ethernet
+nodevice		lge		# Level 1 LXT1001 gigabit Ethernet
+nodevice		msk		# Marvell/SysKonnect Yukon II Gigabit Ethernet
+nodevice		nfe		# nVidia nForce MCP on-board Ethernet
+nodevice		nge		# NatSemi DP83820 gigabit Ethernet
+#nodevice		nve		# nVidia nForce MCP on-board Ethernet Networking
+nodevice		pcn		# AMD Am79C97x PCI 10/100 (precedence over 'le')
+nodevice		re		# RealTek 8139C+/8169/8169S/8110S
+nodevice		rl		# RealTek 8129/8139
+nodevice		sf		# Adaptec AIC-6915 (``Starfire'')
+nodevice		sge		# Silicon Integrated Systems SiS190/191
+nodevice		sis		# Silicon Integrated Systems SiS 900/SiS 7016
+nodevice		sk		# SysKonnect SK-984x & SK-982x gigabit Ethernet
+nodevice		ste		# Sundance ST201 (D-Link DFE-550TX)
+nodevice		stge		# Sundance/Tamarack TC9021 gigabit Ethernet
+nodevice		tl		# Texas Instruments ThunderLAN
+nodevice		tx		# SMC EtherPower II (83c170 ``EPIC'')
+nodevice		vge		# VIA VT612x gigabit Ethernet
+nodevice		vr		# VIA Rhine, Rhine II
+nodevice		wb		# Winbond W89C840F
+nodevice		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
+
+# ISA Ethernet NICs.  pccard NICs included.
+nodevice		cs		# Crystal Semiconductor CS89x0 NIC
+# 'device ed' requires 'device miibus'
+nodevice		ed		# NE[12]000, SMC Ultra, 3c503, DS8390 cards
+nodevice		ex		# Intel EtherExpress Pro/10 and Pro/10+
+nodevice		ep		# Etherlink III based cards
+nodevice		fe		# Fujitsu MB8696x based cards
+nodevice		sn		# SMC's 9000 series of Ethernet chips
+nodevice		xe		# Xircom pccard Ethernet
+
+# Wireless NIC cards
+nodevice		wlan		# 802.11 support
+nooptions 	IEEE80211_DEBUG	# enable debug msgs
+nooptions 	IEEE80211_AMPDU_AGE # age frames in AMPDU reorder q's
+nooptions 	IEEE80211_SUPPORT_MESH	# enable 802.11s draft support
+nodevice		wlan_wep	# 802.11 WEP support
+nodevice		wlan_ccmp	# 802.11 CCMP support
+nodevice		wlan_tkip	# 802.11 TKIP support
+nodevice		wlan_amrr	# AMRR transmit rate control algorithm
+nodevice		an		# Aironet 4500/4800 802.11 wireless NICs.
+nodevice		ath		# Atheros NICs
+nodevice		ath_pci		# Atheros pci/cardbus glue
+nodevice		ath_hal		# pci/cardbus chip support
+nooptions 	AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
+nooptions 	AH_AR5416_INTERRUPT_MITIGATION	# AR5416 interrupt mitigation
+nooptions 	ATH_ENABLE_11N	# Enable 802.11n support for AR5416 and later
+nodevice		ath_rate_sample	# SampleRate tx rate control for ath
+#nodevice		bwi		# Broadcom BCM430x/BCM431x wireless NICs.
+#nodevice		bwn		# Broadcom BCM43xx wireless NICs.
+nodevice		ipw		# Intel 2100 wireless NICs.
+nodevice		iwi		# Intel 2200BG/2225BG/2915ABG wireless NICs.
+nodevice		iwn		# Intel 4965/1000/5000/6000 wireless NICs.
+nodevice		malo		# Marvell Libertas wireless NICs.
+nodevice		mwl		# Marvell 88W8363 802.11n wireless NICs.
+nodevice		ral		# Ralink Technology RT2500 wireless NICs.
+nodevice		wi		# WaveLAN/Intersil/Symbol 802.11 wireless NICs.
+nodevice		wpi		# Intel 3945ABG wireless NICs.
+ 
+# USB support
+nooptions 	USB_DEBUG	# enable debug msgs
+nodevice		uhci		# UHCI PCI->USB interface
+nodevice		ohci		# OHCI PCI->USB interface
+nodevice		ehci		# EHCI PCI->USB interface (USB 2.0)
+nodevice		xhci		# XHCI PCI->USB interface (USB 3.0)
+nodevice		usb		# USB Bus (required)
+nodevice		ukbd		# Keyboard
+nodevice		umass		# Disks/Mass storage - Requires scbus and da
+
+# Sound support
+nodevice		sound		# Generic sound driver (required)
+nodevice		snd_cmi		# CMedia CMI8338/CMI8738
+nodevice		snd_csa		# Crystal Semiconductor CS461x/428x
+nodevice		snd_emu10kx	# Creative SoundBlaster Live! and Audigy
+nodevice		snd_es137x	# Ensoniq AudioPCI ES137x
+nodevice		snd_hda		# Intel High Definition Audio
+nodevice		snd_ich		# Intel, NVidia and other ICH AC'97 Audio
+nodevice		snd_via8233	# VIA VT8233x Audio
+
+# MMC/SD
+nodevice		mmc		# MMC/SD bus
+nodevice		mmcsd		# MMC/SD memory card
+nodevice		sdhci		# Generic PCI SD Host Controller
+
+# VirtIO support
+nodevice		virtio		# Generic VirtIO bus (required)
+nodevice		virtio_pci	# VirtIO PCI device
+nodevice		vtnet		# VirtIO Ethernet device
+nodevice		virtio_blk	# VirtIO Block device
+nodevice		virtio_scsi	# VirtIO SCSI device
+nodevice		virtio_balloon	# VirtIO Memory Balloon device
+
+# HyperV drivers
+nodevice		hyperv		# HyperV drivers 
+
+# Xen support
+nodevice		xenpci		# Generic Xen bus
+
+# VMware support
+nodevice		vmx		# VMware VMXNET3 Ethernet

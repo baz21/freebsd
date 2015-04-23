@@ -1,0 +1,7 @@
+include PHD-GENERIC
+
+ident PHD-SDTS
+
+options PHD_EXTRA_SDTS
+options PHD_EXTRA_1000_SDTS
+ 

@@ -1,0 +1,8 @@
+include PHD-GENERIC
+
+ident PHD-NO-D
+
+nooptions 	KDTRACE_FRAME		# Ensure frames are compiled in
+nooptions 	KDTRACE_HOOKS		# Kernel DTrace hooks
+nooptions 	DDB_CTF			# Kernel ELF linker loads CTF data
+ 
