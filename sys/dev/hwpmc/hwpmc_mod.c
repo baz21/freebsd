@@ -2315,6 +2315,7 @@ pmc_release_pmc_descriptor(struct pmc *pm)
 
 
 		/* Wait for the PMCs runcount to come to zero. */
+/* XXX-BZ hangs here. */
 		pmc_wait_for_pmc_idle(pm);
 
 		/*
@@ -3704,6 +3705,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 			break;
 
 		for (i = 0; i < npmc; i++) {
+			//printf("XXX-BZ %s pmcid[%d] = 0x%08x\n", __func__, i, prw[i].pm_pmcid);
 			if (PMC_ID_TO_MODE(prw[i].pm_pmcid) == PMC_MODE_INVALID) {
 				pm[i] = NULL;
 				continue;
@@ -3824,11 +3826,11 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 rw_m_copyout:
 			/* return old value if requested */
 			if (prw[i].pm_flags & PMC_F_OLDVALUE) {
-				struct pmc_op_pmcrw **pprw;
+				struct pmc_op_pmcrw *pprw;
 
-				pprw = (struct pmc_op_pmcrw **) arg;
+				pprw = (struct pmc_op_pmcrw *) arg;
 
-				if ((error = copyout(&oldvalue, &pprw[i]->pm_value,
+				if ((error = copyout(&oldvalue, &pprw[i].pm_value,
 					 sizeof(prw[i].pm_value))))
 					break;
 			}
@@ -4019,6 +4021,7 @@ rw_m_error_out:
 
 		for (i = 0; i < npmc; i++) {
 			pmcid = sp[i].pm_pmcid;
+			//printf("XXX-BZ %s pmcid[%d] = 0x%08x\n", __func__, i, pmcid);
 			if (PMC_ID_TO_MODE(pmcid) == PMC_MODE_INVALID) {
 				pm[i] = NULL;
 				continue;
@@ -4095,7 +4098,7 @@ start_m_out:
 	{
 		pmc_id_t pmcid;
 		unsigned int npmc, i;
-		int err;
+		int e, err;
 
 		PMC_DOWNGRADE_SX();
 
@@ -4103,11 +4106,14 @@ start_m_out:
 		struct pmc_op_simple sp[npmc];
 		struct pmc *pm[npmc];
 
-		if ((error = copyin(arg, sp, sizeof(sp[0]) * npmc)) != 0)
+		if ((error = copyin(arg, sp, sizeof(sp[0]) * npmc)) != 0) {
+			//printf("XXX-BZ %s pmcid[%d] copyin %d\n", __func__, npmc, error);
 			break;
+		}
 
 		for (i = 0; i < npmc; i++) {
 			pmcid = sp[i].pm_pmcid;
+			//printf("XXX-BZ %s pmcid[%d] = 0x%08x\n", __func__, i, pmcid);
 			if (PMC_ID_TO_MODE(pmcid) == PMC_MODE_INVALID) {
 				pm[i] = NULL;
 				continue;
@@ -4118,8 +4124,10 @@ start_m_out:
 			 * routines if needed.
 			 */
 
-			if ((error = pmc_find_pmc(pmcid, &pm[i])) != 0)
+			if ((error = pmc_find_pmc(pmcid, &pm[i])) != 0) {
+			//printf("XXX-BZ %s pmcid[%d] pmc_find_pmc %d\n", __func__, i, error);
 				goto stop_m_out;
+			}
 
 			KASSERT(pmcid == pm[i]->pm_id,
 			    ("[pmc,%d] pmc id %x != pmcid %x", __LINE__,
@@ -4130,21 +4138,28 @@ start_m_out:
 				continue;
 			} else if (pm[i]->pm_state != PMC_STATE_RUNNING) {
 				error = EINVAL;
+			//printf("XXX-BZ %s pmcid[%d] not running %d\n", __func__, i, error);
 				goto stop_m_out;
 			}
 		}
 
-		err = 0;
+		e = err = 0;
 		for (i = 0; i < npmc; i++) {
 			if (pm[i] == NULL)
 				continue;
 			error = pmc_stop(pm[i]);
 			if (error != 0) {
-				/* Try to stop as many as possible. */
+			//printf("XXX-BZ %s pmcid[%d] error %d\n", __func__, i, error);
+				/* 
+				 * Try to stop as many as possible.
+				 * Save the first error we encounter.
+				 */
+				if (err == 0)
+					e = error;
 				err++;
 			}
 		}
-		error = err;
+		error = e;
 	}
 stop_m_out:
 	break;

@@ -84,13 +84,18 @@ int	pmc_enable(int _cpu, int _pmc);
 int	pmc_get_driver_stats(struct pmc_driverstats *_gms);
 int	pmc_get_msr(pmc_id_t _pmc, uint32_t *_msr);
 int	pmc_init(void);
+int	pmc_read_m(pmc_id_t *_pmc, pmc_value_t **_value, int npmc);
 int	pmc_read(pmc_id_t _pmc, pmc_value_t *_value);
 int	pmc_release(pmc_id_t _pmc);
+int	pmc_rw_m(pmc_id_t *_pmc, pmc_value_t *_newvalue, pmc_value_t **_oldvalue, int npmc);
 int	pmc_rw(pmc_id_t _pmc, pmc_value_t _newvalue, pmc_value_t *_oldvalue);
 int	pmc_set(pmc_id_t _pmc, pmc_value_t _value);
+int	pmc_start_m(pmc_id_t *_pmc, int _npmc);
 int	pmc_start(pmc_id_t _pmc);
+int	pmc_stop_m(pmc_id_t *_pmc, int _npmc);
 int	pmc_stop(pmc_id_t _pmc);
 int	pmc_width(pmc_id_t _pmc, uint32_t *_width);
+int	pmc_write_m(pmc_id_t *_pmc, pmc_value_t *_value, int npmc);
 int	pmc_write(pmc_id_t _pmc, pmc_value_t _value);
 int	pmc_writelog(uint32_t _udata);
 

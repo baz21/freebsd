@@ -3543,12 +3543,52 @@ pmc_read(pmc_id_t pmc, pmc_value_t *value)
 }
 
 int
+pmc_read_m(pmc_id_t *pmc, pmc_value_t **value, int npmc)
+{
+	struct pmc_op_pmcrw pmc_read_op[npmc];
+	int i;
+
+	for (i = 0; i < npmc; i++) {
+		pmc_read_op[i].pm_pmcid = pmc[i];
+		pmc_read_op[i].pm_flags = PMC_F_OLDVALUE;
+		pmc_read_op[i].pm_value = -1;
+	}
+
+	if (PMC_CALL(PMCRW_M, &pmc_read_op[0]) < 0)
+		return (-1);
+
+	for (i = 0; i < npmc; i++)
+		(*value)[i] = pmc_read_op[i].pm_value;
+	return (0);
+}
+
+int
 pmc_release(pmc_id_t pmc)
 {
 	struct pmc_op_simple	pmc_release_args;
 
 	pmc_release_args.pm_pmcid = pmc;
 	return (PMC_CALL(PMCRELEASE, &pmc_release_args));
+}
+
+int
+pmc_rw_m(pmc_id_t *pmc, pmc_value_t *newvalue, pmc_value_t **oldvaluep, int npmc)
+{
+	struct pmc_op_pmcrw pmc_rw_op[npmc];
+	int i;
+
+	for (i = 0; i < npmc; i++) {
+		pmc_rw_op[i].pm_pmcid = pmc[i];
+		pmc_rw_op[i].pm_flags = PMC_F_NEWVALUE | PMC_F_OLDVALUE;
+		pmc_rw_op[i].pm_value = newvalue[i];
+	}
+
+	if (PMC_CALL(PMCRW_M, &pmc_rw_op[0]) < 0)
+		return (-1);
+
+	for (i = 0; i < npmc; i++)
+		(*oldvaluep)[i] = pmc_rw_op[i].pm_value;
+	return (0);
 }
 
 int
@@ -3581,12 +3621,34 @@ pmc_set(pmc_id_t pmc, pmc_value_t value)
 }
 
 int
+pmc_start_m(pmc_id_t *pmc, int npmc)
+{
+	struct pmc_op_simple	pmc_start_args[npmc];
+	int i;
+
+	for (i = 0; i < npmc; i++)
+		pmc_start_args[i].pm_pmcid = pmc[i];
+	return (PMC_CALL(PMCSTART_M, &pmc_start_args[0]));
+}
+
+int
 pmc_start(pmc_id_t pmc)
 {
 	struct pmc_op_simple	pmc_start_args;
 
 	pmc_start_args.pm_pmcid = pmc;
 	return (PMC_CALL(PMCSTART, &pmc_start_args));
+}
+
+int
+pmc_stop_m(pmc_id_t *pmc, int npmc)
+{
+	struct pmc_op_simple	pmc_stop_args[npmc];
+	int i;
+
+	for (i = 0; i < npmc; i++)
+		pmc_stop_args[i].pm_pmcid = pmc[i];
+	return (PMC_CALL(PMCSTOP_M, &pmc_stop_args[0]));
 }
 
 int
